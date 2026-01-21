@@ -9,8 +9,9 @@ Instead of choosing between full-featured i18n and performance, use both: `vue-i
 ## Features
 
 - **Fast**: pre-flattens messages into `Map`s, `t()` is just an O(1) lookup + simple string replace
-- **Tiny**: no runtime message compilation, no pluralization, no date/number formatting
-- **Simple API**: `createI18n`, `useI18n`, `$t` — similar to `vue-i18n` but much smaller
+- **Tiny**: no runtime message compilation, minimal overhead
+- **Simple API**: `createI18n`, `useI18n`, `$t`, `$tc` — similar to `vue-i18n` but much smaller
+- **Pluralization**: supports basic pluralization with locale-aware rules for common languages
 - **Global scope only**: one global i18n instance, no per-component/local scope overhead
 - **TypeScript**: written in TypeScript, exported types included
 - **Compatible with vue-i18n**: use both libraries together with proper configuration
@@ -29,7 +30,6 @@ Designed for scenarios like:
 >
 > To keep the implementation tiny and predictable, this library **DOES NOT** support:
 >
-> - Pluralization rules
 > - Date / number formatting
 > - Local / per-component message scopes
 > - Complex message formats or nested expressions
@@ -41,7 +41,7 @@ Designed for scenarios like:
 
 Instead of choosing between full-featured i18n and performance, you can use both libraries together:
 
-- **vue-i18n** for complex translations: pluralization, date/number formatting, rich message formats
+- **vue-i18n** for complex translations: date/number formatting, rich message formats
 - **nano-vue-i18n** for performance-critical paths: high-frequency updates, large lists, real-time data
 
 ### Configuration
@@ -236,6 +236,86 @@ function switchToZh() {
 
 ---
 
+## Pluralization
+
+The library supports pluralization via the `tc()` method (translate with count). Define plural forms using the pipe `|` character:
+
+```ts
+const messages = {
+  en: {
+    apple: 'I have {n} apple|I have {n} apples',
+    item: 'one item|many items'
+  },
+  fr: {
+    apple: '{n} pomme|{n} pommes'
+  },
+  ru: {
+    apple: '{n} яблоко|{n} яблока|{n} яблок'
+  }
+};
+```
+
+Use `tc()` with a count to get the appropriate form:
+
+```ts
+const { tc } = useI18n();
+
+tc('apple', 1);  // => 'I have {n} apple'
+tc('apple', 5);  // => 'I have {n} apples'
+tc('apple', 1, { n: 1 });  // => 'I have 1 apple'
+tc('apple', 5, { n: 5 });  // => 'I have 5 apples'
+```
+
+### Supported Locales
+
+Built-in pluralization rules for:
+
+| Locale | Rule |
+| -------- | ------ |
+| English (`en`) | n === 1 ? singular : plural |
+| French (`fr`) | n === 0 \|\| n === 1 ? singular : plural |
+| German (`de`) | n === 1 ? singular : plural |
+| Spanish (`es`) | n === 1 ? singular : plural |
+| Russian (`ru`) | 3 forms based on endings |
+| Polish (`pl`) | 3 forms based on endings |
+| Arabic (`ar`) | 6 forms |
+| Chinese (`zh`) | No plural (single form) |
+| Japanese (`ja`) | No plural (single form) |
+| Korean (`ko`) | No plural (single form) |
+
+### Custom Plural Rules
+
+Define custom plural rules via the `customPluralRules` option:
+
+```ts
+const i18n = createI18n({
+  locale: 'en',
+  fallbackLocale: 'en',
+  messages,
+  customPluralRules: {
+    en: (n) => {
+      if (n === 0) return 0;
+      if (n === 1) return 1;
+      if (n >= 100) return 2;
+      return 1;
+    }
+  }
+});
+```
+
+### Global Injection
+
+The `tc` method is also available globally as `$tc` (or `$prefixTc` with a prefix):
+
+```vue
+<template>
+  <p>{{ $tc('apple', count) }}</p>
+  <p>{{ $nanoTc('item', count) }}</p>
+</template>
+```
+
+---
+
 ## API
 
 ### `createI18n(options)`
@@ -278,10 +358,15 @@ interface I18nOptions {
    * Default: ''
    */
   globalInjectPrefix?: string;
+  /**
+   * Custom pluralization rules for specific locales.
+   * The function should return the plural form index (0-based) based on the count.
+   */
+  customPluralRules?: Record<string, (n: number) => number>;
 }
 ```
 
-#### Global Injection
+#### Global Properties
 
 By default, `createI18n` injects `$t`, `$i18n`, and `$locale` as global properties on `app.config.globalProperties`, making them available in all components without using `useI18n`.
 
@@ -321,6 +406,7 @@ const i18n = createI18n({
 ```ts
 interface I18nInstance {
   t: (key: string, params?: Ref<Record<string, any>> | Record<string, any>) => string;
+  tc: (key: string, count: number, params?: Ref<Record<string, any>> | Record<string, any>) => string;
   locale: Ref<string>;
   availableLocales: string[];
   messages: Record<string, any>;
@@ -390,6 +476,58 @@ t('common.hello', {});
 
 ---
 
+### `tc(key, count, params?)`
+
+Translate a message with pluralization based on count.
+
+- `key`: dot-separated path, e.g. `"common.apple"`.
+- `count`: the count used to select the appropriate plural form.
+- `params`: optional object or `ref` object used for `{param}` interpolation.
+
+Plural forms are defined using the pipe `|` character:
+
+```ts
+const messages = {
+  en: {
+    apple: 'I have {n} apple|I have {n} apples'
+  }
+};
+```
+
+```ts
+tc('apple', 1);
+// => 'I have {n} apple'
+
+tc('apple', 5);
+// => 'I have {n} apples'
+
+tc('apple', 1, { n: 1 });
+// => 'I have 1 apple'
+
+tc('apple', 5, { n: 5 });
+// => 'I have 5 apples'
+```
+
+The library uses locale-aware pluralization rules:
+
+```ts
+// English: n === 1 ? 0 : 1
+tc('apple', 1); // singular
+tc('apple', 5); // plural
+
+// French: n === 0 || n === 1 ? 0 : 1
+tc('apple', 0); // singular (French rule)
+tc('apple', 1); // singular
+tc('apple', 2); // plural
+
+// Chinese: always 0 (no plural)
+tc('apple', 0); // same form
+tc('apple', 1); // same form
+tc('apple', 5); // same form
+```
+
+---
+
 ## How It Works (High-level)
 
 - On initialization, **all locales** in `messages` are:
@@ -399,6 +537,11 @@ t('common.hello', {});
   1. Looks up the string in the current `locale` map
   2. Falls back to `fallbackLocale` if missing
   3. Runs a simple regex `\{(\w+)\}` to replace placeholders from `params`
+- For `tc()` (pluralization):
+  1. Looks up the translation key
+  2. Splits the translation by `|` to get plural forms
+  3. Applies locale-specific pluralization rules to select the correct form
+  4. Performs the same `{param}` replacement as `t()`
 
 There is:
 
@@ -453,8 +596,10 @@ I tried to tune `vue-i18n` for quite a while — disabling performance options, 
 
 At some point I realized:
 
-> I don’t need pluralization, rich message formats, or local scopes.
+> I don’t need pluralization, rich message formats or local scopes.
 > I just want fast global translations with `{param}` placeholders that don’t block the main thread.
+>
+> *But indeed, pluralization is essential, so I bing it back.*
 
 So instead of fighting more knobs on a general‑purpose library, I wrote the smallest thing that could possibly work for my case:
 
