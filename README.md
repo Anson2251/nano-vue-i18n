@@ -1,8 +1,8 @@
 # nano-vue-i18n
 
-A stupidly simple yet ultra-lightweight i18n plugin for Vue 3, designed for high-frequency rendering scenarios. It’s so tiny that it doesn’t support runtime compilation or complex message formats — just straightforward {param} interpolation.
+A stupidly simple yet ultra-lightweight i18n plugin for Vue 3, designed for high-frequency rendering scenarios. It’s so tiny that it doesn’t support runtime compilation or complex message formats — just straightforward `{param}` interpolation.
 
-When you only need fast translations and basic placeholders, this is a tiny alternative to `vue-i18n`.
+Instead of choosing between full-featured i18n and performance, use both: `vue-i18n` for complex translations and `nano-vue-i18n` for high-frequency updates.
 
 ---
 
@@ -13,6 +13,7 @@ When you only need fast translations and basic placeholders, this is a tiny alte
 - **Simple API**: `createI18n`, `useI18n`, `$t` — similar to `vue-i18n` but much smaller
 - **Global scope only**: one global i18n instance, no per-component/local scope overhead
 - **TypeScript**: written in TypeScript, exported types included
+- **Compatible with vue-i18n**: use both libraries together with proper configuration
 
 Designed for scenarios like:
 
@@ -21,6 +22,7 @@ Designed for scenarios like:
 - Dashboards with many rapidly-updating components
 
 ---
+
 > [!WARNING]
 >
 > ## What it is not intended to do
@@ -32,6 +34,102 @@ Designed for scenarios like:
 > - Local / per-component message scopes
 > - Complex message formats or nested expressions
 > - Runtime hot-updating of message definitions (other than reloading the app)
+
+---
+
+## Use with vue-i18n (Recommended)
+
+Instead of choosing between full-featured i18n and performance, you can use both libraries together:
+
+- **vue-i18n** for complex translations: pluralization, date/number formatting, rich message formats
+- **nano-vue-i18n** for performance-critical paths: high-frequency updates, large lists, real-time data
+
+### Configuration
+
+To avoid conflicts with vue-i18n's global properties (`$t`, `$i18n`, `$d`, etc.), configure `nano-vue-i18n` with either:
+
+#### Option 1: Disable global injection entirely
+
+```ts
+const nanoI18n = createI18n({
+  locale: 'en',
+  fallbackLocale: 'en',
+  messages,
+  globalInject: false  // No global properties added
+});
+```
+
+#### Option 2: Use a custom prefix (recommended)
+
+```ts
+const nanoI18n = createI18n({
+  locale: 'en',
+  fallbackLocale: 'en',
+  messages,
+  globalInjectPrefix: 'nano'  // Access as $nanoT, $nanoI18n, $nanoLocale
+});
+```
+
+### Usage Example
+
+Install both plugins in your app:
+
+```ts
+// src/main.ts
+import { createApp } from 'vue';
+import { createI18n as createVueI18n } from 'vue-i18n';
+import { createI18n as createNanoI18n } from 'nano-vue-i18n';
+import App from './App.vue';
+
+const vueI18n = createVueI18n({ /* vue-i18n config */ });
+const nanoI18n = createNanoI18n({
+  locale: 'en',
+  fallbackLocale: 'en',
+  messages: { /* shared messages */ },
+  globalInjectPrefix: 'nano'
+});
+
+const app = createApp(App);
+app.use(vueI18n);
+app.use(nanoI18n);
+app.mount('#app');
+```
+
+Use both in components:
+
+```vue
+<script setup lang="ts">
+import { useI18n as useVueI18n } from 'vue-i18n';
+import { useI18n as useNanoI18n } from 'nano-vue-i18n';
+
+const vue = useVueI18n();
+const nano = useNanoI18n();
+
+// Complex translations with vue-i18n
+const formattedDate = vue.d(new Date(), 'long');
+const pluralMessage = vue.t('messages.plural', { count: 5 });
+
+// Fast translations for frequently updating data with nano-vue-i18n
+const status = ref('online');
+const statusText = computed(() =>
+  nano.t('common.status', { status: status.value })
+);
+</script>
+
+<template>
+  <div>
+    <!-- vue-i18n for complex features -->
+    <p>{{ $t('messages.welcome') }}</p>
+    <p>{{ $d(new Date(), 'long') }}</p>
+
+    <!-- nano-vue-i18n for performance-critical paths -->
+    <p>{{ $nanoT('common.status', { status }) }}</p>
+    <div v-for="item in largeList" :key="item.id">
+      {{ $nanoT('item.label', { name: item.name }) }}
+    </div>
+  </div>
+</template>
+```
 
 ---
 
@@ -216,50 +314,7 @@ const i18n = createI18n({
 });
 ```
 
-#### Using with vue-i18n
-
-If you're using both `nano-vue-i18n` and `vue-i18n` in the same app, you should either disable global injection from `nano-vue-i18n` or use a prefix to avoid conflicts with vue-i18n's global properties (`$t`, `$i18n`, `$d`, etc.).
-
-```ts
-// Option 1: Disable global injection entirely
-const nanoI18n = createI18n({
-  locale: 'en',
-  fallbackLocale: 'en',
-  messages,
-  globalInject: false
-});
-
-// Option 2: Use a prefix to avoid conflicts
-const nanoI18n = createI18n({
-  locale: 'en',
-  fallbackLocale: 'en',
-  messages,
-  globalInjectPrefix: 'nano' // access as $nanoT, $nanoI18n, $nanoLocale
-});
-```
-
-Then in your components, use `useI18n` from `nano-vue-i18n` for fast translations in performance-critical areas:
-
-```vue
-<script setup lang="ts">
-import { useI18n as useNanoI18n } from 'nano-vue-i18n';
-import { useI18n as useVueI18n } from 'vue-i18n';
-
-const nano = useNanoI18n();
-const vue = useVueI18n();
-
-// Fast translation for frequently updating data
-const status = 'online';
-const statusText = nano.t('common.status', { status });
-</script>
-
-<template>
-  <div>
-    <!-- Use prefixed global T function from nano-vue-i18n -->
-    <p>{{ $nanoT('common.hello', { name: 'World' }) }}</p>
-  </div>
-</template>
-```
+> See [Use with vue-i18n (Recommended)](#use-with-vue-i18n-recommended) for detailed instructions on using both libraries together.
 
 #### Returned instance
 
@@ -371,8 +426,12 @@ Compared to a full-featured i18n solution:
 
 > [!NOTE]
 >
-> If you need complex features (pluralization, rich formatting, local scopes, etc.), you should use [`vue-i18n`](https://github.com/intlify/vue-i18n).
-> If you need **fast translations with simple `{param}` interpolation**, this library is designed for that.
+> **Recommended approach**: Use both libraries together.
+>
+> - Use [`vue-i18n`](https://github.com/intlify/vue-i18n) for complex features (pluralization, rich formatting, local scopes, etc.)
+> - Use `nano-vue-i18n` for performance-critical paths requiring **fast translations with simple `{param}` interpolation**
+>
+> See [Use with vue-i18n (Recommended)](#use-with-vue-i18n-recommended) for configuration details.
 
 ---
 

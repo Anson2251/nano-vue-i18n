@@ -1,6 +1,6 @@
 {
   "name": "nano-vue-i18n",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A stupidly simple yet ultra-lightweight i18n plugin for Vue 3, designed for high-frequency rendering scenarios.",
   "type": "module",
   "main": "./dist/index.js",
