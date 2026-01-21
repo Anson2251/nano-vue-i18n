@@ -1,6 +1,6 @@
 {
   "name": "nano-vue-i18n",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "A stupidly simple yet ultra-lightweight i18n plugin for Vue 3, designed for high-frequency rendering scenarios.",
   "type": "module",
   "main": "./dist/index.mjs",
@@ -21,7 +21,7 @@
   "scripts": {
     "dev": "tsup --watch",
     "build": "tsup",
-    "test": "vitest"
+    "test": "vitest run"
   },
   "peerDependencies": {
     "vue": "^3.0.0"

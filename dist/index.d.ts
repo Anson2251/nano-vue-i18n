@@ -28,6 +28,10 @@ interface I18nOptions {
      * The global name to use for the i18n instance when globally injected.
      */
     globalInjectPrefix?: string;
+    /**
+     * The custom rules for pluralization, return the plural form index based on the count.
+     */
+    customPluralRules?: Record<string, PluralRule>;
 }
 /**
  * The main i18n instance interface providing translation and locale management.
@@ -40,6 +44,14 @@ interface I18nInstance {
      * @returns The translated string
      */
     t: (key: string, params?: Ref<Record<string, any>> | Record<string, any>) => string;
+    /**
+     * Translates a key into the current locale's string, optionally interpolating parameters and handling pluralization.
+     * @param key - The translation key
+     * @param choice - The count used for pluralization
+     * @param params - Optional parameters for interpolation, can be a reactive Ref or plain object
+     * @returns The translated string
+     */
+    tc: (key: string, count: number, params?: Ref<Record<string, any>> | Record<string, any>) => string;
     /**
      * The current locale as a reactive Ref.
      */
@@ -57,6 +69,8 @@ interface I18nInstance {
      */
     fallbackLocale: string;
 }
+type PluralRule = (n: number) => number;
+declare const defaultPluralRules: Record<string, PluralRule>;
 /**
  * Creates a new i18n instance with the provided options.
  *
@@ -93,4 +107,4 @@ declare function createI18n(options: I18nOptions): I18nInstance & Plugin;
  */
 declare function useI18n(): I18nInstance;
 
-export { type I18nInstance, createI18n, useI18n };
+export { type I18nInstance, type PluralRule, createI18n, defaultPluralRules, useI18n };
