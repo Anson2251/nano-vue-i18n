@@ -9,4 +9,5 @@ export default defineConfig({
     clean: true,
     minify: true,
     external: ["vue"],
+    outExtension: ({ format }) => ({ js: format === 'cjs' ? '.cjs' : '.mjs' })
 });
