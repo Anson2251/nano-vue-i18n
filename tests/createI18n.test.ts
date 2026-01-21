@@ -155,7 +155,7 @@ describe('createI18n', () => {
 
         i18n.t('nonexistent');
 
-        expect(warnSpy).toHaveBeenCalledWith('[i18n] Missing translation for key: nonexistent');
+        expect(warnSpy).toHaveBeenCalledWith('[i18n (nano)] Missing translation for key: nonexistent');
 
         warnSpy.mockRestore();
     });
@@ -165,7 +165,7 @@ describe('createI18n', () => {
             locale: 'en',
             fallbackLocale: 'en',
             messages,
-            globalNamePrefix: 'myI18n'
+            globalInjectPrefix: 'myI18n'
         });
 
         expect(i18n.locale.value).toBe('en');

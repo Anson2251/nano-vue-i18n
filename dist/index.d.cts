@@ -23,11 +23,11 @@ interface I18nOptions {
     /**
      * Whether to inject globally in the same way as Vue I18n, defaults to true.
      */
-    globalInjection?: boolean;
+    globalInject?: boolean;
     /**
      * The global name to use for the i18n instance when globally injected.
      */
-    globalNamePrefix?: string;
+    globalInjectPrefix?: string;
 }
 /**
  * The main i18n instance interface providing translation and locale management.

@@ -27,12 +27,12 @@ interface I18nOptions {
     /**
      * Whether to inject globally in the same way as Vue I18n, defaults to true.
      */
-    globalInjection?: boolean;
+    globalInject?: boolean;
 
     /**
      * The global name to use for the i18n instance when globally injected.
      */
-    globalNamePrefix?: string;
+    globalInjectPrefix?: string;
 }
 
 /**
@@ -76,16 +76,17 @@ const I18nInjectionKey = Symbol("i18n");
  * @param prefix - Optional prefix for building dot-notation keys (used internally for recursion)
  * @returns A Map where keys are dot-notation paths and values are the translation strings
  */
-function flattenMessages(messages: any, prefix = ""): Map<string, string> {
+function flattenMessages(messages: Record<string, any>, prefix = ""): Map<string, string> {
     const result = new Map<string, string>();
 
     for (const key in messages) {
         const fullKey = prefix ? `${prefix}.${key}` : key;
-        const value = (messages as Record<string, any>)[key];
+        const value = messages[key];
 
         if (typeof value === "string") {
             result.set(fullKey, value);
-        } else if (typeof value === "object" && value !== null) {
+        }
+        else if (typeof value === "object" && value !== null) {
             const nested = flattenMessages(value, fullKey);
             for (const [nestedKey, nestedValue] of nested) {
                 result.set(nestedKey, nestedValue);
@@ -94,27 +95,6 @@ function flattenMessages(messages: any, prefix = ""): Map<string, string> {
     }
 
     return result;
-}
-
-/**
- * Builds a translation reference map for a given locale's messages.
- *
- * @param messages - The messages object for a specific locale
- * @param _locale - The locale identifier (unused, kept for API consistency)
- * @returns A Map mapping translation keys to their translated strings
- */
-function buildTranslationRefs(
-    messages: any,
-    _locale: string,
-): Map<string, string> {
-    const flat = flattenMessages(messages);
-    const refs = new Map<string, string>();
-
-    for (const [key, value] of flat) {
-        refs.set(key, value);
-    }
-
-    return refs;
 }
 
 /**
@@ -143,39 +123,21 @@ export function createI18n(options: I18nOptions): I18nInstance & Plugin {
     const messages = options.messages;
     const fallbackLocale = options.fallbackLocale;
     const availableLocales = Object.keys(messages);
-    const translationRefs = new Map<string, Map<string, string>>();
-
-    // Build translation refs for all locales
-    for (const loc of availableLocales) {
-        if (!translationRefs.has(loc)) {
-            translationRefs.set(loc, buildTranslationRefs(messages[loc], loc));
-        }
-    }
+    const translationMap: Map<string, string> = flattenMessages(messages);
 
     function getTranslation(key: string): string {
-        // Try current locale
-        const currentRefs = translationRefs.get(locale.value);
-        const translation = currentRefs?.get(key);
+        const translation = translationMap.get(`${locale.value}.${key}`)
+            ?? translationMap.get(`${fallbackLocale}.${key}`);
 
-        if (translation !== undefined) {
+        if (typeof translation !== "undefined") {
             return translation;
         }
-
-        // Fallback to fallback locale
-        if (locale.value !== fallbackLocale) {
-            const fallbackRefs = translationRefs.get(fallbackLocale);
-            const fallbackTranslation = fallbackRefs?.get(key);
-
-            if (fallbackTranslation !== undefined) {
-                return fallbackTranslation;
+        else {
+            if (options.missingWarn !== false) {
+                console.warn(`[i18n (nano)] Missing translation for key: ${key}`);
             }
+            return key;
         }
-
-        // Missing translation
-        if (options.missingWarn !== false) {
-            console.warn(`[i18n] Missing translation for key: ${key}`);
-        }
-        return key;
     }
 
     const PARAM_REGEX = /\{(\w+)\}/g;
@@ -201,11 +163,6 @@ export function createI18n(options: I18nOptions): I18nInstance & Plugin {
         return translation;
     }
 
-    // Global $t function for template usage (returns string)
-    function globalT(key: string, params?: any): string {
-        return t(key, params);
-    }
-
     const instance: I18nInstance = {
         t,
         locale,
@@ -217,14 +174,14 @@ export function createI18n(options: I18nOptions): I18nInstance & Plugin {
     const plugin: Plugin = {
         install(app: App) {
             app.provide(I18nInjectionKey, instance);
-            if (options.globalInjection !== false) {
-                if (options.globalNamePrefix?.length) {
-                    app.config.globalProperties[`$${options.globalNamePrefix}T`] = globalT;
-                    app.config.globalProperties[`$${options.globalNamePrefix}I18n`] = instance;
-                    app.config.globalProperties[`$${options.globalNamePrefix}Locale`] = locale;
+            if (options.globalInject !== false) {
+                if (options.globalInjectPrefix?.length) {
+                    app.config.globalProperties[`$${options.globalInjectPrefix}T`] = t;
+                    app.config.globalProperties[`$${options.globalInjectPrefix}I18n`] = instance;
+                    app.config.globalProperties[`$${options.globalInjectPrefix}Locale`] = locale;
                 }
                 else {
-                    app.config.globalProperties[`$t`] = globalT;
+                    app.config.globalProperties[`$t`] = t;
                     app.config.globalProperties[`$i18n`] = instance;
                     app.config.globalProperties[`$locale`] = locale;
                 }
@@ -252,7 +209,7 @@ export function useI18n(): I18nInstance {
 
     if (!i18n) {
         throw new Error(
-            "I18n instance not found. Did you forget to install the i18n plugin?",
+            "I18n (nano) instance not found. Did you forget to install the i18n plugin?",
         );
     }
 

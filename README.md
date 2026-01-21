@@ -394,7 +394,7 @@ t('common.hello', {});
 
 - On initialization, **all locales** in `messages` are:
   1. Flattened into `"a.b.c"` keys
-  2. Stored in a `Map<locale, Map<key, string>>`
+  2. Stored in a `Map<key_with_locale_prefix, string>`
 - At runtime, `t()`:
   1. Looks up the string in the current `locale` map
   2. Falls back to `fallbackLocale` if missing
@@ -459,7 +459,7 @@ At some point I realized:
 So instead of fighting more knobs on a general‑purpose library, I wrote the smallest thing that could possibly work for my case:
 
 - Flatten all messages once at startup
-- Store them in `Map<locale, Map<key, string>>`
+- Store them in `Map<key_with_locale_prefix, string>`
 - Make `t()` just:
   - O(1) map lookup
   - A trivial `{param}` replacement on plain strings
