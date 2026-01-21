@@ -14,6 +14,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  "include": ["src", "tests/createI18n.test.ts", "tests/flattenMessages.test.ts", "tests/useI18n.test.ts"],
   "exclude": ["dist"]
 }

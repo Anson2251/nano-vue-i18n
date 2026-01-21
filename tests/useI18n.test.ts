@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { useI18n } from './index';
+import { useI18n } from '../src/index';
 
 describe('useI18n', () => {
     it('should throw error when i18n is not installed', () => {

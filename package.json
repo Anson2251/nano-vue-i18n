@@ -1,6 +1,6 @@
 {
   "name": "nano-vue-i18n",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A stupidly simple yet ultra-lightweight i18n plugin for Vue 3, designed for high-frequency rendering scenarios.",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,7 +20,8 @@
   ],
   "scripts": {
     "dev": "tsup --watch",
-    "build": "tsup"
+    "build": "tsup",
+    "test": "vitest"
   },
   "peerDependencies": {
     "vue": "^3.0.0"
@@ -41,6 +42,14 @@
     "performance",
     "lightweight"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:Anson2251/nano-vue-i18n.git"
+  },
   "author": "Anson2251",
-  "license": "MIT"
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Anson2251/nano-vue-i18n/issues"
+  },
+  "homepage": "https://github.com/Anson2251/nano-vue-i18n#readme"
 }

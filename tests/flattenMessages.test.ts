@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createI18n } from './index';
+import { createI18n } from '../src/index';
 
 describe('createI18n - flattenMessages', () => {
     it('should flatten a simple object', () => {

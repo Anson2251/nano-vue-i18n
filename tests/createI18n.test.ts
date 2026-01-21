@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createI18n } from './index';
+import { createI18n } from '../src/index';
 
 describe('createI18n', () => {
     const messages = {
