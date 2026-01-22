@@ -217,9 +217,7 @@ export function createI18n(options: I18nOptions): I18nInstance & Plugin {
         const forms = pluralForms.get(`${locale.value}.${key}`)
             ?? pluralForms.get(`${fallbackLocale}.${key}`);
 
-        if (!forms) return getTranslation(key);
-
-        if (forms.length <= 1) return key;
+        if (!forms || forms.length === 0) return getTranslation(key);
 
         const rule = pluralizationRules.get(locale.value)
             ?? pluralizationRules.get(fallbackLocale)
@@ -246,28 +244,22 @@ export function createI18n(options: I18nOptions): I18nInstance & Plugin {
 
     const PARAM_REGEX = /\{(\w+)\}/g;
 
+    function interpolate(template: string, params?: Ref<Record<string, any>> | Record<string, any>): string {
+        if (!params) return template;
+        const currentParams = unref(params);
+        return template.replace(PARAM_REGEX, (match, paramName: string) =>
+            paramName in currentParams ? String(currentParams[paramName]) : match
+        );
+    }
+
     function t(
         key: string,
         params?: Ref<Record<string, any>> | Record<string, any>,
     ): string {
-        let translation = getTranslation(key);
-        if (!params) return translation;
-
-        const currentParams = unref(params);
-
-        translation = translation.replace(
-            PARAM_REGEX,
-            (match, paramName: string) => {
-                return paramName in currentParams
-                    ? String(currentParams[paramName])
-                    : match;
-            },
-        );
-
-        return translation;
+        return interpolate(getTranslation(key), params);
     }
 
-    function tc(key: string, count: number, params?: Ref<Record<string, any>> | Record<string, any>)  {
+    function tc(key: string, count: number, params?: Ref<Record<string, any>> | Record<string, any>) {
         if (isNaN(count)) {
             if (options.missingWarn !== false) {
                 console.warn(
@@ -277,15 +269,7 @@ export function createI18n(options: I18nOptions): I18nInstance & Plugin {
             count = 1; // default to 1 if count is NaN
         }
 
-        let translation = applyPlural(key, count)
-        if (!params) return translation;
-
-        const currentParams = unref(params);
-        return translation.replace(PARAM_REGEX, (match, paramName: string) => {
-            return paramName in currentParams
-                ? String(currentParams[paramName])
-                : match;
-        });
+        return interpolate(applyPlural(key, count), params);
     }
 
     const instance: I18nInstance = {
@@ -301,26 +285,16 @@ export function createI18n(options: I18nOptions): I18nInstance & Plugin {
         install(app: App) {
             app.provide(I18nInjectionKey, instance);
             if (options.globalInject !== false) {
-                if (options.globalInjectPrefix?.length) {
-                    app.config.globalProperties[
-                        `$${options.globalInjectPrefix}T`
-                    ] = t;
-                    app.config.globalProperties[
-                        `$${options.globalInjectPrefix}I18n`
-                    ] = instance;
-                    app.config.globalProperties[
-                        `$${options.globalInjectPrefix}Locale`
-                    ] = locale;
-                    app.config.globalProperties[
-                        `$${options.globalInjectPrefix}Tc`
-                    ] = tc;
+                if (options.globalInjectPrefix?.length) { // camelCase for prefixed global properties
+                    app.config.globalProperties[`$${options.globalInjectPrefix}T` ] = t;
+                    app.config.globalProperties[`$${options.globalInjectPrefix}I18n`] = instance;
+                    app.config.globalProperties[`$${options.globalInjectPrefix}Locale`] = locale;
+                    app.config.globalProperties[`$${options.globalInjectPrefix}Tc`] = tc;
                 } else {
                     app.config.globalProperties[`$t`] = t;
                     app.config.globalProperties[`$i18n`] = instance;
                     app.config.globalProperties[`$locale`] = locale;
-                    app.config.globalProperties[
-                        `$tc`
-                    ] = tc;
+                    app.config.globalProperties[`$tc`] = tc;
                 }
             }
         },
