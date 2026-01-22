@@ -497,7 +497,7 @@ describe('createI18n - pluralization (tc)', () => {
             }
         };
 
-        it('should warn and return unparsed translation when count is NaN', () => {
+        it('should warn and return singular form translation when count is NaN', () => {
             const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
 
             const i18n = createI18n({
@@ -509,7 +509,7 @@ describe('createI18n - pluralization (tc)', () => {
             const result = i18n.tc('apple', NaN);
 
             expect(warnSpy).toHaveBeenCalledWith('[i18n (nano)] Plural parameter is NaN');
-            expect(result).toBe('one apple|many apples');
+            expect(result).toBe('one apple');
 
             warnSpy.mockRestore();
         });
@@ -784,6 +784,124 @@ describe('createI18n - pluralization (tc)', () => {
             });
             expect(i18n.tc('fruits.apple', 1)).toBe('one apple');
             expect(i18n.tc('fruits.apple', 5)).toBe('many apples');
+        });
+    });
+
+    describe('Array format for plural forms', () => {
+        const messages = {
+            en: {
+                apple: ['one apple', 'many apples'],
+                item: ['one item', 'many items', 'tons of items']
+            }
+        };
+
+        it('should handle array format with two forms', () => {
+            const i18n = createI18n({
+                locale: 'en',
+                fallbackLocale: 'en',
+                messages
+            });
+            expect(i18n.tc('apple', 1)).toBe('one apple');
+            expect(i18n.tc('apple', 2)).toBe('many apples');
+            expect(i18n.tc('apple', 0)).toBe('many apples');
+        });
+
+        it('should handle array format with three forms', () => {
+            const i18n = createI18n({
+                locale: 'en',
+                fallbackLocale: 'en',
+                messages
+            });
+            expect(i18n.tc('item', 1)).toBe('one item');
+            expect(i18n.tc('item', 2)).toBe('many items');
+            expect(i18n.tc('item', 5)).toBe('many items');
+        });
+
+        it('should handle array format with interpolation', () => {
+            const messagesWithParams = {
+                en: {
+                    apple: ['{n} apple', '{n} apples']
+                }
+            };
+            const i18n = createI18n({
+                locale: 'en',
+                fallbackLocale: 'en',
+                messages: messagesWithParams
+            });
+            expect(i18n.tc('apple', 1, { n: 1 })).toBe('1 apple');
+            expect(i18n.tc('apple', 5, { n: 5 })).toBe('5 apples');
+        });
+
+        it('should handle nested array format', () => {
+            const messages = {
+                en: {
+                    fruits: {
+                        apple: ['one apple', 'many apples']
+                    }
+                }
+            };
+            const i18n = createI18n({
+                locale: 'en',
+                fallbackLocale: 'en',
+                messages
+            });
+            expect(i18n.tc('fruits.apple', 1)).toBe('one apple');
+            expect(i18n.tc('fruits.apple', 5)).toBe('many apples');
+        });
+
+        it('should handle array format with Russian pluralization', () => {
+            const messages = {
+                ru: {
+                    apple: ['{n} яблоко', '{n} яблока', '{n} яблок']
+                }
+            };
+            const i18n = createI18n({
+                locale: 'ru',
+                fallbackLocale: 'ru',
+                messages
+            });
+            expect(i18n.tc('apple', 1)).toBe('{n} яблоко');
+            expect(i18n.tc('apple', 2)).toBe('{n} яблока');
+            expect(i18n.tc('apple', 5)).toBe('{n} яблок');
+        });
+
+        it('should handle array format with French pluralization', () => {
+            const messages = {
+                fr: {
+                    apple: ['{n} pomme', '{n} pommes']
+                }
+            };
+            const i18n = createI18n({
+                locale: 'fr',
+                fallbackLocale: 'fr',
+                messages
+            });
+            expect(i18n.tc('apple', 0)).toBe('{n} pomme');
+            expect(i18n.tc('apple', 1)).toBe('{n} pomme');
+            expect(i18n.tc('apple', 2)).toBe('{n} pommes');
+        });
+    });
+
+    describe('Mixed pipe and array format', () => {
+        it('should handle both pipe and array formats in same messages object', () => {
+            const messages = {
+                en: {
+                    apple: 'one apple|many apples',
+                    banana: ['one banana', 'many bananas'],
+                    cherry: 'one cherry|many cherries|tons of cherries'
+                }
+            };
+            const i18n = createI18n({
+                locale: 'en',
+                fallbackLocale: 'en',
+                messages
+            });
+            expect(i18n.tc('apple', 1)).toBe('one apple');
+            expect(i18n.tc('apple', 2)).toBe('many apples');
+            expect(i18n.tc('banana', 1)).toBe('one banana');
+            expect(i18n.tc('banana', 2)).toBe('many bananas');
+            expect(i18n.tc('cherry', 1)).toBe('one cherry');
+            expect(i18n.tc('cherry', 2)).toBe('many cherries');
         });
     });
 

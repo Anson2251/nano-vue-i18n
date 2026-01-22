@@ -84,6 +84,8 @@ export type PluralRule = (n: number) => number;
 
 const I18nInjectionKey = Symbol("i18n");
 
+const NANO_VUE_I18N_PLURAL_SEPARATOR = '\x01'; // use a special character as separator for plural forms
+
 /**
  * Recursively flattens nested message objects into a flat map with dot-notation keys.
  *
@@ -97,12 +99,17 @@ function flattenMessages(
 ): Map<string, string> {
     const result = new Map<string, string>();
 
+    const PLURAL_REGEX = /\s*\|\s*/g;
+
     for (const key in messages) {
         const fullKey = prefix ? `${prefix}.${key}` : key;
         const value = messages[key];
 
         if (typeof value === "string") {
-            result.set(fullKey, value);
+            result.set(fullKey, value.replace(PLURAL_REGEX, NANO_VUE_I18N_PLURAL_SEPARATOR));
+        }
+        else if (Array.isArray(value)) {
+            result.set(fullKey, value.join(NANO_VUE_I18N_PLURAL_SEPARATOR));
         } else if (typeof value === "object" && value !== null) {
             const nested = flattenMessages(value, fullKey);
             for (const [nestedKey, nestedValue] of nested) {
@@ -111,6 +118,14 @@ function flattenMessages(
         }
     }
 
+    return result;
+}
+
+function constructPluralizationFormsMap(translationMap: Map<string, string>) {
+    const result = new Map<string, string[]>();
+    translationMap.forEach((value, key) => {
+        if (value.includes(NANO_VUE_I18N_PLURAL_SEPARATOR)) result.set(key, value.split(NANO_VUE_I18N_PLURAL_SEPARATOR).map((v) => v.trim()));
+    });
     return result;
 }
 
@@ -196,15 +211,19 @@ export function createI18n(options: I18nOptions): I18nInstance & Plugin {
     const pluralizationRules = constructPluralizationRulesMap(
         options.customPluralRules,
     );
+    const pluralForms = constructPluralizationFormsMap(translationMap);
 
-    function applyPlural(translation: string, count: number, locale: string): string {
-        const forms = translation.split(/\s*\|\s*/).map(s => s.trim());
-        if (forms.length <= 1) return translation;
+    function applyPlural(key: string, count: number): string {
+        const forms = pluralForms.get(`${locale.value}.${key}`)
+            ?? pluralForms.get(`${fallbackLocale}.${key}`);
 
-        let rule = pluralizationRules.get(locale);
-        if (!rule) {
-            rule = pluralizationRules.get(fallbackLocale) ?? ((n) => n === 1 ? 0 : 1);
-        }
+        if (!forms) return getTranslation(key);
+
+        if (forms.length <= 1) return key;
+
+        const rule = pluralizationRules.get(locale.value)
+            ?? pluralizationRules.get(fallbackLocale)
+            ?? ((n) => n === 1 ? 0 : 1);
 
         const index = rule(Math.abs(count));
         return forms[Math.min(index, forms.length - 1)];
@@ -223,11 +242,6 @@ export function createI18n(options: I18nOptions): I18nInstance & Plugin {
             }
             return key;
         }
-    }
-
-    function getPluralTranslation(key: string, count: number): string {
-        const translation = getTranslation(key);
-        return applyPlural(translation, count, locale.value);
     }
 
     const PARAM_REGEX = /\{(\w+)\}/g;
@@ -260,10 +274,10 @@ export function createI18n(options: I18nOptions): I18nInstance & Plugin {
                     `[i18n (nano)] Plural parameter is NaN`
                 );
             }
-            return getTranslation(key);
+            count = 1; // default to 1 if count is NaN
         }
 
-        let translation = getPluralTranslation(key, count);
+        let translation = applyPlural(key, count)
         if (!params) return translation;
 
         const currentParams = unref(params);

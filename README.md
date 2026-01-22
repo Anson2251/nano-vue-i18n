@@ -238,7 +238,9 @@ function switchToZh() {
 
 ## Pluralization
 
-The library supports pluralization via the `tc()` method (translate with count). Define plural forms using the pipe `|` character:
+The library supports pluralization via the `tc()` method (translate with count). Define plural forms using either the pipe `|` character or an array:
+
+### Pipe Format
 
 ```ts
 const messages = {
@@ -251,6 +253,36 @@ const messages = {
   },
   ru: {
     apple: '{n} яблоко|{n} яблока|{n} яблок'
+  }
+};
+```
+
+### Array Format
+
+You can also define plural forms using arrays for cleaner syntax:
+
+```ts
+const messages = {
+  en: {
+    apple: ['I have {n} apple', 'I have {n} apples'],
+    item: ['one item', 'many items', 'tons of items']
+  },
+  fr: {
+    apple: ['{n} pomme', '{n} pommes']
+  },
+  ru: {
+    apple: ['{n} яблоко', '{n} яблока', '{n} яблок']
+  }
+};
+```
+
+Both formats can be mixed in the same messages object:
+
+```ts
+const messages = {
+  en: {
+    apple: 'one apple|many apples',     // pipe format
+    banana: ['one banana', 'many bananas']  // array format
   }
 };
 ```
@@ -484,12 +516,20 @@ Translate a message with pluralization based on count.
 - `count`: the count used to select the appropriate plural form.
 - `params`: optional object or `ref` object used for `{param}` interpolation.
 
-Plural forms are defined using the pipe `|` character:
+Plural forms can be defined using either the pipe `|` character or an array:
 
 ```ts
+// Pipe format
 const messages = {
   en: {
     apple: 'I have {n} apple|I have {n} apples'
+  }
+};
+
+// Array format
+const messages = {
+  en: {
+    apple: ['I have {n} apple', 'I have {n} apples']
   }
 };
 ```
@@ -533,15 +573,15 @@ tc('apple', 5); // same form
 - On initialization, **all locales** in `messages` are:
   1. Flattened into `"a.b.c"` keys
   2. Stored in a `Map<key_with_locale_prefix, string>`
+  3. Plural forms are pre-processed (split by `|` or joined from arrays) for fast lookups
 - At runtime, `t()`:
   1. Looks up the string in the current `locale` map
   2. Falls back to `fallbackLocale` if missing
   3. Runs a simple regex `\{(\w+)\}` to replace placeholders from `params`
 - For `tc()` (pluralization):
-  1. Looks up the translation key
-  2. Splits the translation by `|` to get plural forms
-  3. Applies locale-specific pluralization rules to select the correct form
-  4. Performs the same `{param}` replacement as `t()`
+  1. Looks up the pre-processed plural forms for the key
+  2. Applies locale-specific pluralization rules to select the correct form
+  3. Performs the same `{param}` replacement as `t()`
 
 There is:
 
@@ -599,7 +639,7 @@ At some point I realized:
 > I don’t need pluralization, rich message formats or local scopes.
 > I just want fast global translations with `{param}` placeholders that don’t block the main thread.
 >
-> *But indeed, pluralization is essential, so I bing it back.*
+> *But indeed, pluralization is essential, so I bring it back.*
 
 So instead of fighting more knobs on a general‑purpose library, I wrote the smallest thing that could possibly work for my case:
 
